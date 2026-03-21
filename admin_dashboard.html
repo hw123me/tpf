@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دخول وتسجيل</title>
+     <title>إدارة الشواهد التعليمية-لوحة التحكم</title>
+     <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/u/0/d/1QfAv8PJgyadBVxdSjp2pa8FUB_jteU05">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -14,30 +15,51 @@
 </head>
 
 <body>
-    <div class="container mt-4">
+    <header class="bg-primary text-white shadow-sm mb-0 mx-2 my-1 rounded">
+        <div class="container py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+
+                    <h5 class="mb-0 fw-bold" id="welcomeMsg" style="cursor: pointer;" onclick="showProfileMenu()">
+                        جاري التحميل... <i class="bi bi-pencil-square ms-1 small opacity-50"></i>
+                    </h5>
+                    <small class="opacity-75">  مجمع الإمام يعقوب وأبو عمرو اليصري  </small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-light btn-sm fw-bold px-3 shadow-sm" onclick="logout()">
+                        <i class="bi bi-box-arrow-right me-1"></i> خروج
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mt-4 mb-5">
+
         <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="card bg-primary text-white shadow-sm border-0">
-                    <div class="card-body text-center">
-                        <h6>إجمالي الشواهد</h6>
-                        <h2 id="totalEvidences">0</h2>
-                    </div>
+            <div class="col-md-4 mb-3 mb-md-0">
+
+                <div class="stat-card card-green">
+                    <i class="bi bi-file-earmark-arrow-up bg-icon"></i>
+                    <span class="stat-label">إجمالي الشواهد</h6>
+                        <h2 class="stat-value" id="totalEvidences">0</h2>
+                </div>
+
+            </div>
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="stat-card card-yellow">
+                    <i class="bi bi-star-fill bg-icon"></i>
+
+                    <h6 class="stat-label">شواهد التميز</h6>
+                    <h2 id="featuredCount" class="stat-value ">0</h2>
+
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card bg-success text-white shadow-sm border-0">
-                    <div class="card-body text-center">
-                        <h6>شواهد التميز</h6>
-                        <h2 id="featuredCount">0</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-info text-white shadow-sm border-0">
-                    <div class="card-body text-center">
-                        <h6>أكثر الموظفين رفعاً</h6>
-                        <h6 id="topUploader" class="mt-2">-</h6>
-                    </div>
+            <div class="col-md-4 mb-3 mb-md-0">
+                <div class="stat-card card-blue">
+                    <i class="bi bi-people bg-icon"></i>
+                    <h6 class="stat-label">أكثر الموظفين رفعاً</h6>
+                    <h6 id="topUploader" class="mt-2">-</h6>
                 </div>
             </div>
         </div>
@@ -56,17 +78,21 @@
                             <option value="notFeatured">غير المميزة</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-5">
                         <div class="d-flex gap-2">
-                            <button class="btn btn-secondary w-100 py-2 shadow-sm" onclick="loadAdminData()">
-                                تحديث <i class="bi bi-arrow-clockwise"></i>
+                            <button class="btn btn-secondary w-100 py-2 shadow-sm" onclick="loadAdminData()" title="تحديث">
+                                 <i class="bi bi-arrow-clockwise"></i>
                             </button>
-                            <button class="btn btn-success w-100 py-2 shadow-sm" onclick="exportToExcel()">
-                                تصدير <i class="bi bi-file-earmark-excel"></i>
+                            <button class="btn btn-success w-100 py-2 shadow-sm" onclick="exportToExcel()" title="تصدير">
+                                 <i class="bi bi-file-earmark-excel"></i>
                             </button>
                             <button class="btn btn-warning w-100 py-2 shadow-sm text-dark fw-bold"
-                                onclick="showRanking()">
-                                الترتيب <i class="bi bi-trophy"></i>
+                                onclick="showRanking()" title="الترتيب">
+                                 <i class="bi bi-trophy"></i>
+                            </button>
+                            <button class="btn btn-info w-100 py-2 shadow-sm text-white fw-bold"
+                                onclick="showRegisteredUsers()" title="المستخدمين">
+                                 <i class="bi bi-people-fill"></i>
                             </button>
                         </div>
                     </div>
@@ -89,7 +115,9 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </main>
+
+
     <div class="modal fade" id="rankingModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
@@ -104,9 +132,62 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="usersModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold">الموظفون المسجلون في النظام</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">الاسم</th>
+                                    <th>الدور الوظيفي</th>
+                                    <th>الإيميل</th>
+                                    <th class="text-center">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersListTable">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer class="custom-footer text-white mt-auto py-2"
+        style="background: #1e3c72; border-top: 2px solid rgba(255,255,255,0.1);">
+        <div class="container">
+            <div class="row align-items-center opacity-75">
+                <div class="col-md-4 text-center text-md-end mb-2 mb-md-0">
+                    <i class="bi bi-cloud-arrow-up-fill me-1"></i>
+                    <span class="x-small"> إدارة الشواهد التعليمية </span>
+                </div>
+                <div class="col-md-2 text-center text-md-center mb-2 mb-md-0">
+                    <span class="x-small"> جميع الحقوق محفوظة &copy; 2026 </span>
+                </div>
+                
+                <div class="col-md-6 text-center text-md-end">
+                    <div class="d-flex flex-row justify-content-center justify-content-md-end gap-3 x-small">
+                        <span>
+                            <i class="bi bi-lightbulb text-warning me-1"></i> فكرة:
+                            <span class="fw-bold">خالد المالكي</span>
+                        </span>
+                        <span class="vr d-none d-md-inline-block opacity-25"></span> <span>
+                            <i class="bi bi-code-slash text-info me-1"></i> تطوير:
+                            <span class="fw-bold">عبدالرزاق المعلوي</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import {
             getFirestore,
             collection,
@@ -128,6 +209,8 @@
             if (user) {
                 const userDoc = await getDoc(doc(db, "users", user.uid));
                 if (userDoc.exists() && userDoc.data().role === "admin") {
+                    const userData = userDoc.data();
+                    document.getElementById('welcomeMsg').innerText = `مرحباً، ${userData.fullName} (${userData.role})`;
                     loadAdminData(); // مسموح له بالدخول
                 } else {
                     // إذا كان معلماً وحاول دخول صفحة المدير، اطرده
@@ -363,9 +446,162 @@
             }
         };
 
+        window.showRegisteredUsers = async () => {
+            const tableBody = document.getElementById('usersListTable');
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-5"><div class="spinner-border text-info"></div></td></tr>';
+
+            const myModal = new bootstrap.Modal(document.getElementById('usersModal'));
+            myModal.show();
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "users"));
+
+                let html = '';
+                querySnapshot.forEach((docSnap) => {
+                    const user = docSnap.data();
+                    const userId = docSnap.id; // المعرف الفريد للمستخدم
+                    const fullName = user.fullName || "غير محدد";
+                    const role = user.role || "معلم";
+                    const isAdmin = role === "admin";
+
+                    html += `
+                <tr>
+                    <td class="ps-3 align-middle">
+                        <div class="fw-bold text-dark">${fullName}</div>
+                    </td>
+                    <td class="align-middle">
+                        <span class="badge ${isAdmin ? 'bg-danger' : 'bg-primary'} rounded-pill shadow-sm">
+                            ${role}
+                        </span>
+                    </td>
+                    <td class="align-middle small text-muted">${user.email}</td>
+                    <td class="text-center align-middle">
+                        <button class="btn btn-sm btn-outline-danger border-0 shadow-sm" 
+                                title="إرسال تنبيه سريع"
+                                onclick="sendReminder('${userId}', '${fullName}')">
+                            <i class="bi bi-bell-fill"></i> تنبيه
+                        </button>
+                    </td>
+                </tr>`;
+                });
+
+                tableBody.innerHTML = html || '<tr><td colspan="4" class="text-center">لا يوجد مستخدمون مسجلون</td></tr>';
+
+            } catch (error) {
+                console.error("خطأ في جلب المستخدمين:", error);
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">حدث خطأ أثناء تحميل القائمة</td></tr>';
+            }
+        };
+        // دالة الخروج
+        window.logout = () => {
+            signOut(auth).then(() => {
+                window.location.href = "index.html";
+            });
+        };
+        window.showProfileMenu = async () => {
+            const { value: action } = await Swal.fire({
+                title: 'إعدادات الحساب',
+                showCancelButton: true,
+                cancelButtonText: 'إغاء',
+                confirmButtonText: 'اختيار',
+                input: 'radio',
+                inputOptions: {
+                    'name': 'تعديل الاسم المستعار',
+                    'pass': 'تغيير كلمة المرور'
+                },
+                inputValidator: (value) => {
+                    if (!value) return 'يجب اختيار إجراء!';
+                }
+            });
+
+            if (action === 'name') {
+                editProfileName(); // استدعاء دالتك الأصلية لتعديل الاسم
+            } else if (action === 'pass') {
+                changePasswordRequest(); // استدعاء دالة تغيير الباسورد
+            }
+        };
+        // تأكد أنك تستخدم window. قبل اسم الدالة
+        window.editProfileName = async () => {
+            const user = auth.currentUser;
+            if (!user) {
+                console.error("المستخدم غير مسجل دخول");
+                return;
+            }
+
+            // جلب الاسم الحالي
+            const welcomeElement = document.getElementById('welcomeMsg');
+            const currentName = welcomeElement ? welcomeElement.innerText.replace('...', '').trim() : "";
+
+            const { value: newName } = await Swal.fire({
+                title: 'تعديل الاسم المستعار',
+                input: 'text',
+                inputValue: currentName,
+                inputLabel: 'الاسم الجديد',
+                showCancelButton: true,
+                confirmButtonText: 'حفظ التغييرات',
+                cancelButtonText: 'إلغاء',
+                inputValidator: (value) => {
+                    if (!value || value.length < 3) {
+                        return 'يرجى كتابة اسم صحيح (3 حروف على الأقل)';
+                    }
+                }
+            });
+
+            if (newName && newName !== currentName) {
+                try {
+                    Swal.showLoading();
+
+                    // التحديث في Firestore
+                    const userDocRef = doc(db, "users", user.uid);
+                    await updateDoc(userDocRef, {
+                        fullName: newName
+                    });
+
+                    // تحديث الواجهة فوراً
+                    if (welcomeElement) {
+                        welcomeElement.innerHTML = `${newName} <i class="bi bi-pencil-square ms-1 small opacity-50"></i>`;
+                    }
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم التحديث!',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+
+                } catch (error) {
+                    console.error("Error updating name:", error);
+                    Swal.fire('خطأ', 'فشل تحديث البيانات', 'error');
+                }
+            }
+        };
+        window.changePasswordRequest = async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const result = await Swal.fire({
+                title: 'تغيير كلمة المرور',
+                text: `هل تريد إرسال رابط إعادة تعيين كلمة المرور إلى بريدك: ${user.email}؟`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، أرسل الرابط',
+                cancelButtonText: 'إلغاء'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    await sendPasswordResetEmail(auth, user.email);
+                    Swal.fire('تم الإرسال!', 'يرجى مراجعة بريدك الإلكتروني (بما في ذلك البريد المهمل Junk).', 'success');
+                } catch (error) {
+                    Swal.fire('خطأ', 'حدث خطأ أثناء محاولة إرسال البريد.', 'error');
+                }
+            }
+        };
+
         // ربط البحث التلقائي
         document.getElementById('searchInput').addEventListener('input', loadAdminData);
         document.getElementById('filterFeatured').addEventListener('change', loadAdminData);
+        window.loadAdminData = loadAdminData; // تأكد من ربط الدالة بالنافذة لسهولة الوصول من HTML
         loadAdminData();
     </script>
 
