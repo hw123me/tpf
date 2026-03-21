@@ -1,0 +1,65 @@
+ body {
+     font-family: 'Tajawal', sans-serif;
+     min-height: 100vh;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+ }
+
+ .container-auth {
+     max-width: 900px;
+     width: 100%;
+ }
+
+ .card {
+     border: none;
+     border-radius: 10px;
+     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+ }
+
+ .btn-custom {
+     background-color: #17154d;
+     border: none;
+     font-weight: bold;
+ }
+
+ .btn-custom:hover {
+     background-color: #4062a5;
+     color: white;
+ }
+
+ .text-custom {
+     color: #1d0461;
+ }
+
+ .form-control:focus {
+     border-color: #4f56b1;
+     box-shadow: 0 0 0 0.2rem rgba(39, 174, 96, 0.25);
+ }
+
+ .nav-tabs .nav-link.active {
+     background-color: #5391cf;
+     color: white;
+     border: none;
+ }
+
+ .nav-tabs .nav-link {
+     color: #2d3436;
+     font-weight: bold;
+ }
+     .accordion-button:not(.collapsed) {
+        background-color: #f8f9fa;
+        color: #0d6efd;
+        box-shadow: none;
+    }
+    .accordion-item {
+        border: 1px solid #eee !important;
+        margin-bottom: 8px;
+        border-radius: 8px !important;
+    }
+    .list-group-item {
+        transition: background-color 0.2s;
+    }
+    .list-group-item:hover {
+        background-color: #fcfcfc;
+    }

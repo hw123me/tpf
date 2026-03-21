@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دخول وتسجيل</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container mt-5 mb-5">
+        <div class="card shadow-sm border-0 mb-4 bg-primary text-white">
+            <div class="card-body d-flex justify-content-between align-items-center py-3">
+                <div>
+                    <h4 class="mb-0 fw-bold" id="welcomeMsg">جاري التحميل...</h4>
+                    <small class="opacity-75">مرحباً بك في نظام إدارة الشواهد</small>
+                </div>
+                <button class="btn btn-light btn-sm fw-bold px-3 shadow-sm" onclick="logout()">
+                    <i class="bi bi-box-arrow-right me-1"></i> خروج
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <h5 class="text-dark fw-bold mb-3 d-flex align-items-center">
+                    <i class="bi bi-list-stars me-2 text-primary"></i> المجالات والمعايير الخاصة بك
+                </h5>
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0">نسبة إنجاز الشواهد المرفوعة</h6>
+                            <span id="percentText" class="badge bg-primary fs-6">0%</span>
+                        </div>
+                        <div class="progress" style="height: 15px; border-radius: 10px;">
+                            <div id="completionBar"
+                                class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                                role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted mt-2 d-block" id="statsText">جاري الحساب...</small>
+                    </div>
+                </div>
+                <div class="accordion accordion-flush shadow-sm rounded-3 overflow-hidden" id="domainsAccordion">
+                    <div class="text-center p-5 bg-white" id="loader">
+                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                        <p class="text-muted">جاري مزامنة البيانات مع السيرفر...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">رفع شاهد جديد</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <h6 class="mb-3">رفع ملف لمجال: <span id="domainNameDisplay" class="text-primary"></span></h6>
+
+                    <div class="mb-3 text-start">
+                        <label class="form-label small fw-bold">اختر الملف</label>
+                        <input type="file" id="fileInput" class="form-control" accept=".pdf,image/*">
+                    </div>
+
+                    <div id="uploadProgress" class="progress d-none mb-3" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                            style="width: 100%"></div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" id="startUploadBtn" class="btn btn-primary px-4">تأكيد الرفع</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import {
+            getFirestore,
+            collection,
+            getDocs,
+            getDoc,
+            addDoc,
+            updateDoc,
+            query,
+            where,
+            doc,
+            deleteDoc
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import firebaseConfig from './config.js';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // التحقق من حالة تسجيل الدخول وجلب البيانات
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    checkUserNotifications(user.uid);
+                    // 1. جلب بيانات المستخدم لمعرفة دوره الوظيفي
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        document.getElementById('welcomeMsg').innerText = `مرحباً، ${userData.fullName} (${userData.role})`;
+
+                        // 2. جلب المجالات والمعايير
+                        loadDomains(userData.role);
+                    }
+                } catch (error) {
+                    console.error("خطأ في جلب بيانات المستخدم:", error);
+                }
+            } else {
+                // إذا لم يسجل دخول، ارجعه لصفحة الدخول
+                window.location.href = "login.html";
+            }
+        });
+
+        async function loadDomains(userRole) {
+            const accordionContainer = document.getElementById('domainsAccordion');
+            const user = auth.currentUser;
+
+            // إظهار اللودر في البداية
+            accordionContainer.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary"></div></div>';
+
+            try {
+                // 1. جلب كل المجالات
+                const domainsSnap = await getDocs(collection(db, "domains"));
+
+                // 2. جلب كل شواهد المستخدم الحالي
+                const evidencesSnap = await getDocs(query(
+                    collection(db, "evidences"),
+                    where("userId", "==", user.uid)
+                ));
+
+                const userEvidences = evidencesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                let totalRoleDomains = 0;
+                let completedDomains = 0;
+                let html = '';
+
+                domainsSnap.forEach((docSnap, index) => {
+                    const data = docSnap.data();
+                    const domainName = data.domainName;
+                    const criteriaList = data.criteriaList || [];
+
+                    // التحقق هل هذا المجال يخص دور المستخدم الحالي؟
+                    const isForRole = criteriaList.some(c => c.role === userRole);
+
+                    if (isForRole) {
+                        totalRoleDomains++;
+
+                        const collapseId = `collapse${index}`;
+                        // هنا يتم تعريف المتغير domainEvidences لكل دورة تكرار
+                        const domainEvidences = userEvidences.filter(e => e.domainName === domainName);
+
+                        if (domainEvidences.length > 0) completedDomains++;
+
+                        // إضافة أيقونة "تم" إذا وجد شاهد
+                        const checkMark = domainEvidences.length > 0 ? '<i class="bi bi-patch-check-fill text-success ms-2"></i>' : '';
+
+                        // بناء الـ HTML لكل عنصر داخل الحلقة مباشرة
+                        html += `
+                    <div class="accordion-item shadow-sm border-0 mb-3">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                                <i class="bi bi-folder2-open me-2 text-primary"></i> 
+                                ${domainName} ${checkMark}
+                            </button>
+                        </h2>
+                        <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#domainsAccordion">
+                            <div class="accordion-body bg-light bg-opacity-10">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="small text-muted">الشواهد المرفوعة:</span>
+                                    <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="handleUpload('${docSnap.id}', '${domainName}')">
+                                        رفع شاهد جديد <i class="bi bi-upload ms-1"></i>
+                                    </button>
+                                </div>
+                                <div class="list-group">
+                                    ${domainEvidences.length > 0 ? domainEvidences.map(ev => `
+                                        <div class="list-group-item d-flex justify-content-between align-items-center border-0 shadow-sm mb-2 rounded">
+                                            <div class="text-truncate me-2" style="max-width: 60%;">
+                                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                                <span class="small">${ev.fileName}</span>
+                                            </div>
+                                            <div class="btn-group">
+                                                <a href="${ev.fileUrl}" target="_blank" class="btn btn-outline-info btn-sm rounded-start">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <button class="btn btn-outline-danger btn-sm rounded-end" onclick="deleteEvidence('${ev.id}')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `).join('') : '<p class="text-center text-muted small py-2">لم يتم رفع أي شواهد بعد.</p>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                    }
+                });
+
+                accordionContainer.innerHTML = html || '<div class="alert alert-warning">لا توجد مجالات مخصصة لدورك.</div>';
+                updateProgressBar(totalRoleDomains, completedDomains);
+
+            } catch (error) {
+                console.error("خطأ في التحميل:", error);
+                accordionContainer.innerHTML = '<div class="alert alert-danger">حدث خطأ أثناء جلب البيانات.</div>';
+            }
+        }
+
+        function updateProgressBar(total, completed) {
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            const bar = document.getElementById('completionBar');
+            const text = document.getElementById('percentText');
+            const stats = document.getElementById('statsText');
+
+            bar.style.width = percentage + "%";
+            text.innerText = percentage + "%";
+            stats.innerText = `تم إكمال ${completed} من أصل ${total} مجالات مطلوبة`;
+
+            // تغيير لون الشريط إذا اكتمل العمل
+            if (percentage === 100) {
+                bar.classList.remove('bg-success');
+                bar.classList.add('bg-primary');
+            }
+        }
+
+        window.deleteEvidence = async (evidenceId) => {
+            const result = await Swal.fire({
+                title: 'هل أنت متأكد؟',
+                text: "سيتم حذف الشاهد نهائياً من سجلاتك!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'نعم، احذف',
+                cancelButtonText: 'إلغاء'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    await deleteDoc(doc(db, "evidences", evidenceId));
+                    Swal.fire('تم الحذف!', 'تمت إزالة الشاهد بنجاح.', 'success');
+
+                    // إعادة تحميل البيانات لتحديث القائمة
+                    const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+                    loadDomains(userDoc.data().role);
+
+                } catch (error) {
+                    Swal.fire('خطأ', 'فشل الحذف، حاول مرة أخرى', 'error');
+                }
+            }
+        };
+
+        // دالة الخروج
+        window.logout = () => {
+            signOut(auth).then(() => {
+                window.location.href = "index.html";
+            });
+        };
+
+        let selectedIndicator = "";
+        let selectedDomainId = "";
+        let selectedDomainName = ""; // متغير عام لتخزين الاسم
+
+        // دالة تفتح النافذة المنبثقة
+        window.handleUpload = (domainId, domainName) => {
+            selectedDomainName = domainName; // حفظ الاسم لاستخدامه عند الحفظ في Firestore
+            document.getElementById('domainNameDisplay').innerText = domainName;
+
+            const myModal = new bootstrap.Modal(document.getElementById('uploadModal'));
+            myModal.show();
+        };
+
+        // دالة تحويل الملف لـ Base64 وإرساله لـ Apps Script
+        document.getElementById('startUploadBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            const btn = document.getElementById('startUploadBtn');
+            const progress = document.getElementById('uploadProgress');
+
+            if (fileInput.files.length === 0) {
+                Swal.fire('تنبيه', 'يرجى اختيار ملف أولاً', 'warning');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async (e) => {
+                const base64Content = e.target.result.split(',')[1];
+
+                try {
+                    btn.disabled = true;
+                    progress.classList.remove('d-none');
+
+                    // إرسال البيانات لـ Google Apps Script
+                    const response = await fetch('https://script.google.com/macros/s/AKfycbzkEnBe3oFl1PtXzXK1BMUxg1rRrWY1v8-7yujQUm93filbV7B3P5nK-8uoFuA_5n31/exec', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            fileBase64: base64Content,
+                            fileName: file.name,
+                            contentType: file.type
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.status === "success") {
+                        // هنا نقوم بتخزين رابط الملف في Firestore لربطه بالمستخدم والمؤشر
+                        await saveEvidenceToFirestore(result.fileUrl, file.name);
+
+                        Swal.fire('نجاح', 'تم رفع الشاهد وحفظ الرابط بنجاح', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+                        // إعادة تحميل البيانات لتحديث القائمة
+                        const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+                        loadDomains(userDoc.data().role);
+                    }
+                } catch (error) {
+                    Swal.fire('خطأ', 'حدثت مشكلة أثناء الرفع', 'error');
+                } finally {
+                    btn.disabled = false;
+                    progress.classList.add('d-none');
+                }
+            };
+
+            reader.readAsDataURL(file);
+        });
+
+        // دالة حفظ بيانات الشاهد المعدلة
+        async function saveEvidenceToFirestore(fileUrl, fileName) {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                const evidenceRef = collection(db, "evidences");
+
+                // استخلاص الاسم من رسالة الترحيب (أو يمكنك جلبه من userData إذا كان متاحاً)
+                const fullName = document.getElementById('welcomeMsg').innerText.split('،')[1].split('(')[0].trim();
+
+                await addDoc(evidenceRef, {
+                    domainName: selectedDomainName, // يتم تعيينه عند الضغط على زر "رفع"
+                    fileUrl: fileUrl,               // الرابط القادم من Google Drive
+                    fileName: fileName,             // اسم الملف المرفوع
+                    userName: fullName,             // اسم المعلم
+                    userId: user.uid,               // معرف المستخدم للفلترة
+                    uploadDate: new Date(),         // تاريخ الرفع
+                    isFeatured: false,              // قيمة افتراضية للشواهد العادية
+                    status: "قيد المراجعة"           // حالة أولية للمدير
+                });
+
+                console.log("تم تسجيل الشاهد في قاعدة البيانات بنجاح");
+            } catch (error) {
+                console.error("خطأ في حفظ البيانات:", error);
+                throw error; // لضمان توقف التسلسل وإظهار خطأ للمستخدم
+            }
+        }
+
+        async function checkUserNotifications(uid) {
+            const q = query(
+                collection(db, "notifications"),
+                where("targetUserId", "==", uid),
+                where("isRead", "==", false)
+            );
+
+            const snap = await getDocs(q);
+            snap.forEach((notificationDoc) => {
+                const data = notificationDoc.data();
+
+                // إظهار التنبيه بشكل أنيق باستخدام SweetAlert
+                Swal.fire({
+                    title: 'تنبيه إداري جديد',
+                    text: data.message,
+                    icon: 'info',
+                    confirmButtonText: 'تم الاطلاع',
+                }).then(async () => {
+                    // تحديث التنبيه ليصبح مقروءاً فلا يظهر مرة أخرى
+                    await updateDoc(doc(db, "notifications", notificationDoc.id), {
+                        isRead: true
+                    });
+                });
+            });
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+
+</html>

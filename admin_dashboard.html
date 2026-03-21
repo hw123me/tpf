@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دخول وتسجيل</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white shadow-sm border-0">
+                    <div class="card-body text-center">
+                        <h6>إجمالي الشواهد</h6>
+                        <h2 id="totalEvidences">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white shadow-sm border-0">
+                    <div class="card-body text-center">
+                        <h6>شواهد التميز</h6>
+                        <h2 id="featuredCount">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white shadow-sm border-0">
+                    <div class="card-body text-center">
+                        <h6>أكثر الموظفين رفعاً</h6>
+                        <h6 id="topUploader" class="mt-2">-</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" id="searchInput" class="form-control"
+                            placeholder="بحث باسم الموظف أو المجال...">
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filterFeatured" class="form-select">
+                            <option value="all">كل الشواهد</option>
+                            <option value="featured">المميزة فقط</option>
+                            <option value="notFeatured">غير المميزة</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-secondary w-100 py-2 shadow-sm" onclick="loadAdminData()">
+                                تحديث <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <button class="btn btn-success w-100 py-2 shadow-sm" onclick="exportToExcel()">
+                                تصدير <i class="bi bi-file-earmark-excel"></i>
+                            </button>
+                            <button class="btn btn-warning w-100 py-2 shadow-sm text-dark fw-bold"
+                                onclick="showRanking()">
+                                الترتيب <i class="bi bi-trophy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-hover bg-white mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>الموظف</th>
+                        <th>المجال</th>
+                        <th>التاريخ</th>
+                        <th>الملف</th>
+                        <th>التميز</th>
+                    </tr>
+                </thead>
+                <tbody id="adminTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="modal fade" id="rankingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold">ترتيب المعلمين حسب النشاط</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <ul class="list-group list-group-flush" id="rankingList">
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import {
+            getFirestore,
+            collection,
+            getDocs,
+            getDoc,
+            addDoc,
+            updateDoc,
+            query,
+            where,
+            doc,
+            deleteDoc
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import firebaseConfig from './config.js';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists() && userDoc.data().role === "admin") {
+                    loadAdminData(); // مسموح له بالدخول
+                } else {
+                    // إذا كان معلماً وحاول دخول صفحة المدير، اطرده
+                    window.location.href = "dashboard.html";
+                }
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        async function loadAdminData() {
+
+
+            const tableBody = document.getElementById('adminTableBody');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const featuredFilter = document.getElementById('filterFeatured').value;
+
+            try {
+                const q = query(collection(db, "evidences"));
+                const querySnapshot = await getDocs(q);
+
+                let allEvidences = [];
+                querySnapshot.forEach(doc => {
+                    allEvidences.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 1. تحديث الإحصائيات (تعمل على كل البيانات)
+                updateAdminStats(allEvidences);
+
+                // 2. تطبيق التصفية بناءً على المدخلات
+                const filtered = allEvidences.filter(ev => {
+                    const matchesSearch = (ev.userName || "").toLowerCase().includes(searchTerm) ||
+                        (ev.domainName || "").toLowerCase().includes(searchTerm);
+
+                    const matchesFeatured = featuredFilter === "all" ? true :
+                        featuredFilter === "featured" ? ev.isFeatured === true :
+                            ev.isFeatured === false;
+
+                    return matchesSearch && matchesFeatured;
+                });
+
+                // 3. عرض الجدول المصفى
+                renderTable(filtered);
+
+            } catch (error) {
+                console.error("خطأ في التحميل:", error);
+            }
+        }
+        function renderTable(data) {
+            const tableBody = document.getElementById('adminTableBody');
+            let html = '';
+
+            data.forEach(ev => {
+                const starClass = ev.isFeatured ? 'bi-star-fill text-warning' : 'bi-star text-muted';
+                const dateStr = ev.uploadDate?.toDate ? ev.uploadDate.toDate().toLocaleDateString('ar-SA') : "غير محدد";
+
+                html += `
+            <tr>
+                <td><small class="fw-bold">${ev.userName || "مجهول"}</small></td>
+                <td><span class="badge bg-light text-dark border">${ev.domainName || "عام"}</span></td>
+                <td><small>${dateStr}</small></td>
+                <td>
+                    <a href="${ev.fileUrl}" target="_blank" class="btn btn-sm btn-outline-info">
+                        عرض <i class="bi bi-eye"></i>
+                    </a>
+                </td>
+                <td>
+                    <button class="btn btn-link p-0" onclick="toggleFeatured('${ev.id}', ${ev.isFeatured || false})">
+                        <i class="bi ${starClass} fs-5"></i>
+                    </button>
+                </td>
+            </tr>`;
+            });
+            tableBody.innerHTML = html || '<tr><td colspan="5" class="text-center">لا توجد نتائج</td></tr>';
+        }
+        // دالة تحديث الإحصائيات والترتيب (الأعلى رفعاً)
+        function updateAdminStats(data) {
+            document.getElementById('totalEvidences').innerText = data.length;
+            document.getElementById('featuredCount').innerText = data.filter(e => e.isFeatured).length;
+
+            // حساب الأعلى رفعاً
+            const counts = data.reduce((acc, curr) => {
+                acc[curr.userName] = (acc[curr.userName] || 0) + 1;
+                return acc;
+            }, {});
+
+            const topUser = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, "-");
+            document.getElementById('topUploader').innerText = topUser !== "-" ? `${topUser} (${counts[topUser]})` : "-";
+        }
+
+        // دالة تبديل حالة التميز (إضافة/حذف)
+        window.toggleFeatured = async (id, currentStatus) => {
+            try {
+                const docRef = doc(db, "evidences", id);
+                await updateDoc(docRef, { isFeatured: !currentStatus });
+                loadAdminData(); // إعادة التحميل لتحديث الجدول والنجمة
+            } catch (error) {
+                console.error("خطأ في تحديث التميز:", error);
+            }
+        };
+
+        // دالة تصدير البيانات المفلترة حالياً إلى ملف Excel
+        window.exportToExcel = () => {
+            const table = document.getElementById("adminTableBody");
+            const rows = Array.from(table.querySelectorAll("tr"));
+
+            // تجهيز البيانات للتصدير (بدون أزرار الحذف والعرض)
+            const data = rows.map(row => {
+                const cols = row.querySelectorAll("td");
+                return {
+                    "الموظف": cols[0].innerText,
+                    "المجال": cols[1].innerText,
+                    "التاريخ": cols[2].innerText,
+                    "رابط الشاهد": cols[3].querySelector("a").href,
+                    "حالة التميز": cols[4].querySelector("i").classList.contains("bi-star-fill") ? "متميز" : "عادي"
+                };
+            });
+
+            if (data.length === 0) {
+                Swal.fire('تنبيه', 'لا توجد بيانات لتصديرها', 'warning');
+                return;
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "الشواهد");
+
+            // تحميل الملف باسم يحتوي على التاريخ الحالي
+            XLSX.writeFile(workbook, `تقرير_الشواهد_${new Date().toLocaleDateString('ar-SA')}.xlsx`);
+        };
+
+        // تحسين: جعل البحث لا يثقل المتصفح (Debouncing)
+        let searchTimer;
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(loadAdminData, 300); // ينتظر 300ms بعد التوقف عن الكتابة
+        });
+
+        window.showRanking = async () => {
+            const rankingList = document.getElementById('rankingList');
+            rankingList.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-warning"></div></div>';
+
+            const myModal = new bootstrap.Modal(document.getElementById('rankingModal'));
+            myModal.show();
+
+            try {
+                const evSnap = await getDocs(collection(db, "evidences"));
+                const allEvidences = evSnap.docs.map(doc => doc.data());
+
+                const stats = {};
+                allEvidences.forEach(ev => {
+                    if (!stats[ev.userName]) {
+                        stats[ev.userName] = {
+                            userId: ev.userId, // التصحيح 1: حفظ المعرف هنا
+                            totalFiles: 0,
+                            uniqueDomains: new Set()
+                        };
+                    }
+                    stats[ev.userName].totalFiles++;
+                    stats[ev.userName].uniqueDomains.add(ev.domainName);
+                });
+
+                const sortedRanking = Object.entries(stats).sort((a, b) => {
+                    if (b[1].uniqueDomains.size !== a[1].uniqueDomains.size) {
+                        return b[1].uniqueDomains.size - a[1].uniqueDomains.size;
+                    }
+                    return b[1].totalFiles - a[1].totalFiles;
+                });
+
+                if (sortedRanking.length === 0) {
+                    rankingList.innerHTML = '<div class="p-4 text-center text-muted">لا توجد بيانات</div>';
+                    return;
+                }
+
+                rankingList.innerHTML = sortedRanking.map((item, index) => {
+                    const [name, data] = item;
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
+
+                    return `
+                <li class="list-group-item py-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <span class="me-2 fw-bold">${medal}</span>
+                            <span class="fw-bold text-dark">${name}</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-warning text-dark rounded-pill me-2">${data.uniqueDomains.size} مجالات</span>
+                            <button class="btn btn-sm btn-outline-danger border-0" 
+                                    onclick="sendReminder('${data.userId}', '${name}')">
+                                <i class="bi bi-bell-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted small">إجمالي الملفات: ${data.totalFiles}</small>
+                        <div class="progress w-50" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: ${(data.uniqueDomains.size / 10) * 100}%"></div>
+                        </div>
+                    </div>
+                </li>`;
+                }).join('');
+
+            } catch (error) {
+                console.error("خطأ في الترتيب:", error);
+                rankingList.innerHTML = '<div class="alert alert-danger m-3">فشل جلب الترتيب</div>';
+            }
+        };
+
+        window.sendReminder = async (userId, teacherName) => {
+            const { value: text } = await Swal.fire({
+                title: `إرسال تنبيه لـ ${teacherName}`,
+                input: 'textarea',
+                inputLabel: 'نص التنبيه',
+                inputValue: 'يرجى التكرم باستكمال رفع الشواهد المتبقية في أقرب وقت.',
+                showCancelButton: true,
+                confirmButtonText: 'إرسال الآن',
+                cancelButtonText: 'إلغاء'
+            });
+
+            if (text) {
+                try {
+                    await addDoc(collection(db, "notifications"), {
+                        targetUserId: userId,
+                        message: text,
+                        senderName: "مدير المدرسة",
+                        createdAt: new Date(),
+                        isRead: false
+                    });
+                    Swal.fire('تم!', 'تم إرسال التنبيه بنجاح.', 'success');
+                } catch (e) {
+                    Swal.fire('خطأ', 'فشل إرسال التنبيه', 'error');
+                }
+            }
+        };
+
+        // ربط البحث التلقائي
+        document.getElementById('searchInput').addEventListener('input', loadAdminData);
+        document.getElementById('filterFeatured').addEventListener('change', loadAdminData);
+        loadAdminData();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+
+</html>
