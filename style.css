@@ -1,5 +1,6 @@
 /* 1. إعدادات الصفحة الأساسية */
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -10,27 +11,32 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background-color: #f8f9fa; /* لون خلفية هادئ */
+    background-color: #f8f9fa;
+    /* لون خلفية هادئ */
     /* إزالة align-items و justify-content من هنا */
 }
 
 /* 2. الهيدر والفوتر */
 header {
-    flex-shrink: 0; /* لضمان عدم تقلص الهيدر */
+    flex-shrink: 0;
+    /* لضمان عدم تقلص الهيدر */
     background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-    border-bottom: 3px solid rgba(255,255,255,0.1);
+    border-bottom: 3px solid rgba(255, 255, 255, 0.1);
 }
 
 .custom-footer {
-    flex-shrink: 0; /* لضمان بقاء الفوتر في الأسفل */
+    flex-shrink: 0;
+    /* لضمان بقاء الفوتر في الأسفل */
     width: 100%;
     background: #1e3c72;
-    box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
 }
 
 /* 3. المحتوى الرئيسي (ديناميكي) */
-main, .main-content {
-    flex: 1 0 auto; /* هذا السطر هو السحر الذي يدفع الفوتر للأسفل */
+main,
+.main-content {
+    flex: 1 0 auto;
+    /* هذا السطر هو السحر الذي يدفع الفوتر للأسفل */
 }
 
 /* 4. إعدادات خاصة لصفحة تسجيل الدخول فقط */
@@ -44,7 +50,8 @@ body.auth-body {
 .card {
     border: none;
     border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* خففت الظل قليلاً ليكون احترافياً */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    /* خففت الظل قليلاً ليكون احترافياً */
 }
 
 .btn-custom {
@@ -72,7 +79,8 @@ body.auth-body {
 
 /* حجم خط أصغر من الـ small العادي */
 .x-small {
-    font-size: 0.75rem !important; /* أو 12px */
+    font-size: 0.75rem !important;
+    /* أو 12px */
     letter-spacing: 0.3px;
 }
 
@@ -85,12 +93,15 @@ body.auth-body {
 }
 
 /* لمسة لجعل الخط يبدو أنحف وأرقى */
-.custom-footer b, .custom-footer .fw-bold {
+.custom-footer b,
+.custom-footer .fw-bold {
     font-weight: 500 !important;
     color: #fff;
 }
+
 #welcomeMsg:hover {
-    color: #ffc107 !important; /* يتغير للون الذهبي عند التأشير */
+    color: #ffc107 !important;
+    /* يتغير للون الذهبي عند التأشير */
     transition: 0.3s;
 }
 
@@ -100,23 +111,84 @@ body.auth-body {
 
 /* بطاقات الإحصائيات الملونة */
 .stat-card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 15px;
-  padding: 1.5rem;
-  color: white;
+    position: relative;
+    overflow: hidden;
+    border-radius: 15px;
+    padding: 1.5rem;
+    color: white;
 }
 
-.card-blue { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); }
-.card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-.card-yellow { background: linear-gradient(135deg, #f6bd14 0%, #fcb655 100%); }
+.card-blue {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+}
+
+.card-green {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.card-yellow {
+    background: linear-gradient(135deg, #f6bd14 0%, #fcb655 100%);
+}
 
 .bg-icon {
-  position: absolute;
-  left: -10px;
-  bottom: -10px;
-  font-size: 5rem;
-  opacity: 0.15;
-  transform: rotate(-15deg);
-  color: #fff;
+    position: absolute;
+    left: -10px;
+    bottom: -10px;
+    font-size: 5rem;
+    opacity: 0.15;
+    transform: rotate(-15deg);
+    color: #fff;
+}
+
+/* تمييز العنصر المفتوح */
+.accordion-button:not(.collapsed) {
+    background-color: #f0f7ff !important;
+    /* لون أزرق خفيف */
+    color: #0d6efd !important;
+    box-shadow: none !important;
+}
+
+/* تحسين شكل الأزرار داخل القائمة */
+.btn-white {
+    background: white;
+    border: 1px solid #eee;
+}
+
+.btn-white:hover {
+    background: #f8f9fa;
+    border-color: #ddd;
+}
+
+/* الخطوط والأحجام */
+.x-small {
+    font-size: 0.75rem;
+}
+
+.domain-title {
+    font-size: 0.95rem;
+}
+
+/* تأثيرات حركية عند تمرير الماوس */
+.accordion-item {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background-color: rgba(115, 103, 166, 0.05);
+}
+
+.accordion-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* تخصيص شريط التمرير (Scrollbar) لجعل التصميم يبدو متكاملاً */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #0d6efd;
+    border-radius: 10px;
 }

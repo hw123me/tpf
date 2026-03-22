@@ -123,9 +123,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import {
-            getFirestore,
             collection,
             getDocs,
             getDoc,
@@ -136,6 +136,7 @@
             doc,
             deleteDoc
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         const firebaseConfig = {
             apiKey: "AIzaSyBd2b3u4C-u3Yx5VruL5VS6NH9w2V_vsO0",
             authDomain: "tofirebase-7f23f.firebaseapp.com",
@@ -144,127 +145,160 @@
             messagingSenderId: "167469471983",
             appId: "1:167469471983:web:6d0f8dead55ca12ceba31a"
         };
-
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const db = getFirestore(app);
+        enableIndexedDbPersistence(db).catch((err) => {
+            console.error("فشل تفعيل التخزين المحلي:", err.code);
+        });
+        const auth = getAuth(app);
 
         // التحقق من حالة تسجيل الدخول وجلب البيانات
+        // متغيرات عامة للوصول للبيانات بسهولة في أي دالة
+        let currentUserData = null;
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 try {
-                    checkUserNotifications(user.uid);
-                    // 1. جلب بيانات المستخدم لمعرفة دوره الوظيفي
+                    // جلب بيانات المستخدم من Firestore
                     const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        document.getElementById('welcomeMsg').innerText = `مرحباً، ${userData.fullName} (${userData.role})`;
 
-                        // 2. جلب المجالات والمعايير
-                        loadDomains(userData.role);
+                    if (userDoc.exists()) {
+                        currentUserData = userDoc.data(); // تخزين البيانات محلياً
+
+                        // تحديث واجهة الترحيب
+                        const welcomeMsg = document.getElementById('welcomeMsg');
+                        welcomeMsg.innerHTML = `مرحباً، ${currentUserData.fullName} <span class="badge bg-white text-primary ms-2 small">${currentUserData.role}</span> <i class="bi bi-pencil-square ms-1 small opacity-50"></i>`;
+
+                        // استدعاء الوظائف الأخرى
+                        checkUserNotifications(user.uid);
+                        loadDomains(currentUserData.role);
+                    } else {
+                        console.error("لا توجد بيانات لهذا المستخدم في Firestore");
                     }
                 } catch (error) {
                     console.error("خطأ في جلب بيانات المستخدم:", error);
                 }
             } else {
-                // إذا لم يسجل دخول، ارجعه لصفحة الدخول
-                window.location.href = "login.html";
+                window.location.href = "index.html";
             }
         });
 
         async function loadDomains(userRole) {
-            const accordionContainer = document.getElementById('domainsAccordion');
             const user = auth.currentUser;
+            if (!user) return;
+            const accordionContainer = document.getElementById('domainsAccordion');
 
-            // إظهار اللودر في البداية
             accordionContainer.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary"></div></div>';
 
             try {
-                // 1. جلب كل المجالات
-                const domainsSnap = await getDocs(collection(db, "domains"));
+                // 1. تشغيل الطلبات بالتوازي لسرعة التحميل
+                const [domainsSnap, evidencesSnap] = await Promise.all([
+                    getDocs(collection(db, "domains")),
+                    getDocs(query(collection(db, "evidences"), where("userId", "==", user.uid)))
+                ]);
 
-                // 2. جلب كل شواهد المستخدم الحالي
-                const evidencesSnap = await getDocs(query(
-                    collection(db, "evidences"),
-                    where("userId", "==", user.uid)
-                ));
-
+                // 2. تحويل الشواهد لمصفوفة بيانات جاهزة
                 const userEvidences = evidencesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 let totalRoleDomains = 0;
                 let completedDomains = 0;
                 let html = '';
 
-                domainsSnap.forEach((docSnap, index) => {
+                domainsSnap.forEach((docSnap) => {
                     const data = docSnap.data();
                     const domainName = data.domainName;
                     const criteriaList = data.criteriaList || [];
 
-                    // التحقق هل هذا المجال يخص دور المستخدم الحالي؟
+                    // التحقق هل المجال يخص الدور الوظيفي للمستخدم
                     const isForRole = criteriaList.some(c => c.role === userRole);
 
                     if (isForRole) {
                         totalRoleDomains++;
 
-                        const collapseId = `collapse${index}`;
-                        // هنا يتم تعريف المتغير domainEvidences لكل دورة تكرار
+                        // التصحِيح هنا: تصفية الشواهد الخاصة بهذا المجال من المصفوفة الكلية
                         const domainEvidences = userEvidences.filter(e => e.domainName === domainName);
+                        const evidenceCount = domainEvidences.length;
 
-                        if (domainEvidences.length > 0) completedDomains++;
+                        if (evidenceCount > 0) completedDomains++;
 
-                        // إضافة أيقونة "تم" إذا وجد شاهد
-                        const checkMark = domainEvidences.length > 0 ? '<i class="bi bi-patch-check-fill text-success ms-2"></i>' : '';
+                        const collapseId = "col_" + Math.random().toString(36).substr(2, 9);
 
-                        // بناء الـ HTML لكل عنصر داخل الحلقة مباشرة
+                        // أيقونة الحالة
+                        const statusIcon = evidenceCount > 0
+                            ? '<i class="bi bi-check-circle-fill text-success me-2"></i>'
+                            : '<i class="bi bi-folder2 me-2 text-primary"></i>';
+
+                        // العداد
+                        const countBadge = evidenceCount > 0
+                            ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle ms-auto px-3">${evidenceCount} شاهد</span>`
+                            : `<span class="badge rounded-pill bg-light text-muted border ms-auto px-3 small">0</span>`;
+
                         html += `
-                    <div class="accordion-item shadow-sm border-0 mb-3">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                                <i class="bi bi-folder2-open me-2 text-primary"></i> 
-                                ${domainName} ${checkMark}
-                            </button>
-                        </h2>
-                        <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#domainsAccordion">
-                            <div class="accordion-body bg-light bg-opacity-10">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="small text-muted">الشواهد المرفوعة:</span>
-                                    <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="handleUpload('${docSnap.id}', '${domainName}')">
-                                        رفع <i class="bi bi-upload ms-1"></i>
-                                    </button>
-                                </div>
-                                <div class="list-group">
-                                    ${domainEvidences.length > 0 ? domainEvidences.map(ev => `
-                                        <div class="list-group-item d-flex justify-content-between align-items-center border-0 shadow-sm mb-2 rounded">
-                                            <div class="text-truncate me-2" style="max-width: 60%;">
-                                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-                                                <span class="small">${ev.fileName}</span>
-                                            </div>
-                                            <div class="btn-group">
-                                                <a href="${ev.fileUrl}" target="_blank" class="btn btn-outline-info btn-sm rounded-start">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
-                                                <button class="btn btn-outline-danger btn-sm rounded-end" onclick="deleteEvidence('${ev.id}')">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
+                <div class="accordion-item shadow-sm border-0 mb-3 rounded-3 overflow-hidden">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold p-3" type="button" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target="#${collapseId}">
+                            <div class="d-flex align-items-center w-100">
+                                ${statusIcon}
+                                <span class="domain-title">${domainName}</span>
+                                ${countBadge}
+                            </div>
+                        </button>
+                    </h2>
+                    
+                    <div id="${collapseId}" class="accordion-collapse collapse">
+                        <div class="accordion-body bg-white border-top border-light">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h6 class="text-secondary fw-bold mb-0 small">
+                                    <i class="bi bi-files me-1"></i> الملفات المرفقة
+                                </h6>
+                                <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="handleUpload('${docSnap.id}', '${domainName}')">
+                                    رفع جديد <i class="bi bi-plus-lg ms-1"></i>
+                                </button>
+                            </div>
+                            <div class="list-group list-group-flush">
+                                ${evidenceCount > 0 ? domainEvidences.map(ev => `
+                                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 bg-light rounded-3 mb-2 p-3">
+                                        <div class="d-flex align-items-center text-truncate">
+                                            <i class="bi bi-file-earmark-text-fill text-primary fs-4 me-3"></i>
+                                            <div class="text-truncate">
+                                                <div class="fw-bold small text-dark text-truncate">${ev.fileName}</div>
+                                                <div class="x-small text-muted">${ev.uploadDate?.seconds ? new Date(ev.uploadDate.seconds * 1000).toLocaleDateString('ar-SA') : 'تاريخ غير معروف'}</div>
                                             </div>
                                         </div>
-                                    `).join('') : '<p class="text-center text-muted small py-2">لم يتم رفع أي شواهد بعد.</p>'}
-                                </div>
+                                        <div class="d-flex gap-2">
+                                            <a href="${ev.fileUrl}" target="_blank" class="btn btn-white btn-sm shadow-sm rounded-circle text-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <button class="btn btn-white btn-sm shadow-sm rounded-circle text-danger" onclick="deleteEvidence('${ev.id}')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('') : `
+                                    <div class="text-center py-4 rounded-3 border-2 border-dashed bg-light">
+                                        <i class="bi bi-cloud-upload text-muted fs-1 d-block mb-2"></i>
+                                        <p class="text-muted small mb-0">لم تقم برفع أي شواهد لهذا المجال بعد</p>
+                                    </div>
+                                `}
                             </div>
                         </div>
-                    </div>`;
+                    </div>
+                </div>`;
                     }
                 });
 
-                accordionContainer.innerHTML = html || '<div class="alert alert-warning">لا توجد مجالات مخصصة لدورك.</div>';
+                accordionContainer.innerHTML = html || '<div class="alert alert-warning text-center">لا توجد مجالات مخصصة لدورك الوظيفي حالياً.</div>';
+
+                // تحديث شريط التقدم الكلي
                 updateProgressBar(totalRoleDomains, completedDomains);
 
             } catch (error) {
                 console.error("خطأ في التحميل:", error);
-                accordionContainer.innerHTML = '<div class="alert alert-danger">حدث خطأ أثناء جلب البيانات.</div>';
+                accordionContainer.innerHTML = '<div class="alert alert-danger">حدث خطأ أثناء جلب البيانات. يرجى المحاولة لاحقاً.</div>';
             }
         }
-
         function updateProgressBar(total, completed) {
             const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -284,6 +318,8 @@
         }
 
         window.deleteEvidence = async (evidenceId) => {
+            const user = auth.currentUser;
+            if (!user) return;
             const result = await Swal.fire({
                 title: 'هل أنت متأكد؟',
                 text: "سيتم حذف الشاهد نهائياً من سجلاتك!",
@@ -387,29 +423,28 @@
         // دالة حفظ بيانات الشاهد المعدلة
         async function saveEvidenceToFirestore(fileUrl, fileName) {
             const user = auth.currentUser;
-            if (!user) return;
+            // التأكد من وجود المستخدم وبياناته
+            if (!user || !currentUserData) return;
 
             try {
                 const evidenceRef = collection(db, "evidences");
 
-                // استخلاص الاسم من رسالة الترحيب (أو يمكنك جلبه من userData إذا كان متاحاً)
-                const fullName = document.getElementById('welcomeMsg').innerText.split('،')[1].split('(')[0].trim();
-
                 await addDoc(evidenceRef, {
-                    domainName: selectedDomainName, // يتم تعيينه عند الضغط على زر "رفع"
-                    fileUrl: fileUrl,               // الرابط القادم من Google Drive
-                    fileName: fileName,             // اسم الملف المرفوع
-                    userName: fullName,             // اسم المعلم
-                    userId: user.uid,               // معرف المستخدم للفلترة
-                    uploadDate: new Date(),         // تاريخ الرفع
-                    isFeatured: false,              // قيمة افتراضية للشواهد العادية
-                    status: "قيد المراجعة"           // حالة أولية للمدير
+                    domainName: selectedDomainName,
+                    fileUrl: fileUrl,
+                    fileName: fileName,
+                    userName: currentUserData.fullName, // استخدام المتغير العام مباشرة
+                    userRole: currentUserData.role,     // إضافة الدور الوظيفي للسجل (اختياري ومفيد للمدير)
+                    userId: user.uid,
+                    uploadDate: new Date(),
+                    isFeatured: false,
+                    status: "قيد المراجعة"
                 });
 
-                console.log("تم تسجيل الشاهد في قاعدة البيانات بنجاح");
+                console.log("تم تسجيل الشاهد بنجاح باسم المستخدم المعتمد.");
             } catch (error) {
                 console.error("خطأ في حفظ البيانات:", error);
-                throw error; // لضمان توقف التسلسل وإظهار خطأ للمستخدم
+                throw error;
             }
         }
 
@@ -464,14 +499,13 @@
         // تأكد أنك تستخدم window. قبل اسم الدالة
         window.editProfileName = async () => {
             const user = auth.currentUser;
-            if (!user) {
-                console.error("المستخدم غير مسجل دخول");
+            // التأكد من أن البيانات محملة مسبقاً
+            if (!user || !currentUserData) {
+                console.error("بيانات المستخدم غير متوفرة");
                 return;
             }
 
-            // جلب الاسم الحالي
-            const welcomeElement = document.getElementById('welcomeMsg');
-            const currentName = welcomeElement ? welcomeElement.innerText.replace('...', '').trim() : "";
+            const currentName = currentUserData.fullName;
 
             const { value: newName } = await Swal.fire({
                 title: 'تعديل الاسم المستعار',
@@ -482,40 +516,47 @@
                 confirmButtonText: 'حفظ التغييرات',
                 cancelButtonText: 'إلغاء',
                 inputValidator: (value) => {
-                    if (!value || value.length < 3) {
+                    if (!value || value.trim().length < 3) {
                         return 'يرجى كتابة اسم صحيح (3 حروف على الأقل)';
                     }
                 }
             });
 
-            if (newName && newName !== currentName) {
+            if (newName && newName.trim() !== currentName) {
                 try {
                     Swal.showLoading();
 
-                    // التحديث في Firestore
+                    // 1. التحديث في قاعدة البيانات (Firestore)
                     const userDocRef = doc(db, "users", user.uid);
                     await updateDoc(userDocRef, {
-                        fullName: newName
+                        fullName: newName.trim()
                     });
 
-                    // تحديث الواجهة فوراً
+                    // 2. التحديث في المتغير العام (Global Variable) 
+                    // هذا هو السطر الأهم لضمان أن الرفع القادم يستخدم الاسم الجديد
+                    currentUserData.fullName = newName.trim();
+
+                    // 3. تحديث واجهة المستخدم فوراً (Header)
+                    const welcomeElement = document.getElementById('welcomeMsg');
                     if (welcomeElement) {
-                        welcomeElement.innerHTML = `${newName} <i class="bi bi-pencil-square ms-1 small opacity-50"></i>`;
+                        welcomeElement.innerHTML = `مرحباً، ${currentUserData.fullName} <span class="badge bg-white text-primary ms-2 small">${currentUserData.role}</span> <i class="bi bi-pencil-square ms-1 small opacity-50"></i>`;
                     }
 
                     Swal.fire({
                         icon: 'success',
                         title: 'تم التحديث!',
-                        timer: 1500,
+                        text: 'تم اعتماد الاسم الجديد في كامل النظام',
+                        timer: 2000,
                         showConfirmButton: false
                     });
 
                 } catch (error) {
                     console.error("Error updating name:", error);
-                    Swal.fire('خطأ', 'فشل تحديث البيانات', 'error');
+                    Swal.fire('خطأ', 'فشل تحديث البيانات في السيرفر', 'error');
                 }
             }
         };
+
         window.changePasswordRequest = async () => {
             const user = auth.currentUser;
             if (!user) return;
