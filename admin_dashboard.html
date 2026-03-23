@@ -187,6 +187,7 @@
             </div>
         </div>
     </footer>
+     <script src="./config.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -202,14 +203,7 @@
             doc,
             deleteDoc
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        const firebaseConfig = {
-            apiKey: "AIzaSyBd2b3u4C-u3Yx5VruL5VS6NH9w2V_vsO0",
-            authDomain: "tofirebase-7f23f.firebaseapp.com",
-            projectId: "tofirebase-7f23f",
-            storageBucket: "tofirebase-7f23f.firebasestorage.app",
-            messagingSenderId: "167469471983",
-            appId: "1:167469471983:web:6d0f8dead55ca12ceba31a"
-        };
+        
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
